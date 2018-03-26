@@ -8,3 +8,10 @@ This project is not open-source.
 * Approximate Starting Time: 11:45 AM CDT
 
 Thank you for giving me the opportunity to apply with you.
+
+# Comments
+
+I noticed that the simulator is not required to check to see if the elevator is going in the right direction when
+checking for candidates that will pass by the requested floor. All real elevators I've seen make this check, and I have
+opted to include this in my implementation because it is more realistic, more efficient, and also simpler to implement
+given the structures I've designed.
