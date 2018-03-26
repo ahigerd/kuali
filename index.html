@@ -5,10 +5,14 @@
   <script src="elevator.js"></script>
   <script src="simulator.js"></script>
   <style>
-    table {
-      display: inline-block;
+    #configuration {
       vertical-align: top;
       margin: 0.5em;
+      width: 16em;
+      float: left;
+    }
+    #configuration tbody {
+      width: 100%;
     }
     input[type="number"] {
       width: 3em;
@@ -35,21 +39,28 @@
 </head>
 <body>
   <h1>Elevator Simulator</h1>
-  <table cellspacing='0'>
+  <table cellspacing='0' id='configuration'>
     <tr>
       <th colspan='2'>Configuration</th>
     </tr>
     <tr>
-      <td>Number of floors:</td>
+      <td width='55%'>Number of floors:</td>
       <td><input id='floors' type='number' value='10' min='1' size='3' /></td>
     </tr>
     <tr>
-      <td>Number of elevators:</td>
+      <td width='55%'>Number of elevators:</td>
       <td><input id='elevators' type='number' value='2' min='1' size='3' maxlength='3' /></td>
     </tr>
     <tr>
       <th colspan='2'><button id='simulate'>Simulate</button></th>
     </tr>
+    <tr>
+      <td colspan='2'>&nbsp;</td>
+    </tr>
+    <tr>
+      <th colspan='2'>Elevators</th>
+    </tr>
+
   </table>
   <div id='outputFrame'>
     <h2>Output</h2>

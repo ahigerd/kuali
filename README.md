@@ -15,3 +15,7 @@ I noticed that the simulator is not required to check to see if the elevator is 
 checking for candidates that will pass by the requested floor. All real elevators I've seen make this check, and I have
 opted to include this in my implementation because it is more realistic, more efficient, and also simpler to implement
 given the structures I've designed.
+
+The instructions are not clear on what defines a "trip". I have chosen to define it as a passenger getting on, riding,
+and getting off, but there are other definitions that could also be meaningful -- for example, this definition does not
+account for travel done by an empty elevator.

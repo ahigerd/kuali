@@ -1,6 +1,5 @@
 "use strict";
 
-const ELEVATOR_SPEED = 1;
 const ELEVATOR_LINGER_TIME = 1;
 
 class Elevator {
@@ -9,18 +8,19 @@ class Elevator {
    * @param {Simulator} simulator The simulation that owns the elevator.
    * @param {Number} index The elevator's identifying index.
    * @param {Number} floors The number of floors serviced by the elevator.
+   * @param {Element} display An HTML element to show the elevator's status.
    */
-  constructor(simulator, index, floors) {
+  constructor(simulator, index, floors, display) {
     this.simulator = simulator;
     this.index = index;
     this.floors = floors;
+    this.display = display;
     this.tripsUntilService = 100;
     this.distanceTraveled = 0;
     this.numPassengers = 0;
+    this.doorOpen = false;
+    this.lingerTime = 0;
     this.label = 'Elevator ' + (index + 1);
-
-    // When the elevator needs serviced, it must stop running.
-    this.running = true;
 
     // A possibility to consider is defining a home floor for elevators.
     this.currentFloor = 1;
@@ -35,6 +35,14 @@ class Elevator {
    */
   get occupied() {
     return this.numPassengers > 0;
+  }
+
+  /**
+   * A read-only property telling if the elevator is running, or if it needs serviced.
+   * @returns {Boolean} True if the elevator is running; false if it needs serviced.
+   */
+  get running() {
+    return this.tripsUntilService > 0;
   }
 
   /**
@@ -56,18 +64,57 @@ class Elevator {
   }
 
   /**
-   * Summons the elevator to the specified floor to travel in a requested direction.
+   * Summons the elevator to the specified floor to travel to another floor.
    * @param {Number} floor The origin floor.
-   * @param {Boolean} direction True to go up, False to go down.
+   * @param {Number} dest The target floor.
    */ 
-  summon(floor, direction) {
-    // TODO: implement
+  summon(floor, dest) {
+    if (this.destinations.includes(floor)) {
+      // Already going this way
+      return;
+    }
+    // Technically the elevator isn't occupied yet, but it might as well be.
+    this.numPassengers++;
+    this.destinations.push(floor);
+    if (floor > dest) {
+      // moving down
+      this.destinations.sort((lhs, rhs) => rhs - lhs);
+    } else {
+      // moving up
+      this.destinations.sort((lhs, rhs) => lhs - rhs);
+    }
+    this.tripsUntilService--;
   }
 
   /**
    * Processes a single tick of the simulation.
    */
   tick() {
-    // TODO: implement
+    if (this.lingerTime > 0) {
+      this.lingerTime--;
+      if (this.lingerTime <= 0) {
+        this.doorOpen = false;
+        this.simulator.report(this, `Doors closed on floor ${this.currentFloor}.`);
+      }
+      return;
+    }
+    if (this.destinations.length) {
+      this.currentFloor += Math.sign(this.destinations[0] - this.currentFloor);
+      this.simulator.report(this, `Moved to floor ${this.currentFloor}`);
+      if (this.currentFloor === this.destinations[0]) {
+        // The elevator has reached its destination
+        this.destinations.shift();
+        this.numPassengers--;
+        this.lingerTime = ELEVATOR_LINGER_TIME;
+        this.doorOpen = true;
+        this.simulator.report(this, `Doors open on floor ${this.currentFloor}.`);
+      }
+      this.distanceTraveled++;
+    }
+    if (!this.running) {
+      this.display.innerHTML = 'Stopped';
+    } else {
+      this.display.innerHTML = `${this.currentFloor + 1} - ${this.doorOpen ? 'Open' : 'Closed'} (${this.numPassengers})`;
+    }
   }
 }

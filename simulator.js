@@ -18,9 +18,18 @@ class Simulator {
     this.timeToRequest = REQUEST_FREQUENCY;
     this.waitingRequests = [];
 
+    const configTable = document.querySelector('#configuration');
     this.elevators = [];
     for (let i = 0; i < elevators; i++) {
-      this.elevators.push(new Elevator(this, i, floors));
+      const row = document.createElement('TR');
+      const label = document.createElement('TD');
+      const display = document.createElement('TD');
+      const elevator = new Elevator(this, i, floors, display);
+      this.elevators.push(elevator);
+      label.innerHTML = elevator.label;
+      row.appendChild(label);
+      row.appendChild(display);
+      configTable.appendChild(row);
     }
 
     // Ensure proper this-binding of the tick function
@@ -28,7 +37,7 @@ class Simulator {
   }
 
   get currentHour() {
-    const hour = Math.floor(this.currentTime / 60);
+    const hour = Math.floor(this.currentTime / 60) % 12;
     return hour === 0 ? 12 : hour;
   }
 
@@ -64,13 +73,13 @@ class Simulator {
         const sourceFloor = Math.floor(Math.random() * this.floors);
         const destFloor = Math.floor(Math.random() * this.floors);
         const elevator = this.pickElevator(sourceFloor, destFloor);
-        if (sourceFloor < destFloor) {
-          this.report(this, `Pressed up button on floor ${sourceFloor + 1}, ${elevator.label} answering.`);
-        } else if (sourceFloor > destFloor) {
-          this.report(this, `Pressed down button on floor ${sourceFloor + 1}, ${elevator.label} answering.`);
+        if (elevator) {
+          this.report(this, `Pressed ${sourceFloor < destFloor ? 'up' : 'down'} button on floor ${sourceFloor + 1}, ${elevator.label} answering.`);
+          elevator.summon(sourceFloor, destFloor);
         }
       }
     }
+    this.elevators.forEach(elevator => elevator.tick());
     if (this.elevators.some(elevator => elevator.running)) {
       // If any elevators are still running, ask the browser to run the simulation for another tick.
       this.currentTime++;
@@ -121,9 +130,11 @@ class Simulator {
 // Wait for the document to finish loading, then attach the Simulate button.
 window.addEventListener('load', () => {
   document.querySelector('button#simulate').addEventListener('click', () => {
+    [...document.querySelectorAll('.elevatorRow')].forEach(row => row.remove());
     const floors = parseInt(document.querySelector('#floors').value) || 1;
     const elevators = parseInt(document.querySelector('#elevators').value) || 1;
     const simulator = new Simulator(floors, elevators);
+    window.sim = simulator;
     simulator.run(document.querySelector('#output'));
   });
 });
