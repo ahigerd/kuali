@@ -1,6 +1,6 @@
 "use strict";
 
-const REQUEST_PROBABILITY = 0.3;
+const REQUEST_PROBABILITY = .8;
 const REQUEST_FREQUENCY = 1;
 
 /**
@@ -75,6 +75,7 @@ class Simulator {
         const elevator = this.pickElevator(sourceFloor, destFloor);
         if (elevator) {
           this.report(this, `Pressed ${sourceFloor < destFloor ? 'up' : 'down'} button on floor ${sourceFloor + 1}, ${elevator.label} answering.`);
+          this.report(this, `going to ${destFloor+1}`);
           elevator.summon(sourceFloor, destFloor);
         }
       }

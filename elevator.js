@@ -17,7 +17,8 @@ class Elevator {
     this.display = display;
     this.tripsUntilService = 100;
     this.distanceTraveled = 0;
-    this.numPassengers = 0;
+    this.passengers = [];
+    this.waitingPassengers = [];
     this.doorOpen = false;
     this.lingerTime = 0;
     this.label = 'Elevator ' + (index + 1);
@@ -34,7 +35,7 @@ class Elevator {
    * @returns {Boolean} True if there are any passengers on board.
    */
   get occupied() {
-    return this.numPassengers > 0;
+    return this.passengers.length > 0;
   }
 
   /**
@@ -60,7 +61,14 @@ class Elevator {
    * @returns {Boolean} True if the elevator will pass by the specified floor.
    */
   isEnRouteTo(floor) {
-    // TODO: implement
+    const lastDestination = this.destinations[this.destinations.length - 1];
+    if (lastDestination >= this.currentFloor) {
+      // moving upward
+      return this.currentFloor <= floor && floor <= lastDestination;
+    } else {
+      // moving downward
+      return this.currentFloor >= floor && floor >= lastDestination;
+    }
   }
 
   /**
@@ -69,21 +77,23 @@ class Elevator {
    * @param {Number} dest The target floor.
    */ 
   summon(floor, dest) {
+    this.waitingPassengers.push({ from: floor, to: dest });
+    this.addDestination(floor);
+  }
+
+  addDestination(floor) {
     if (this.destinations.includes(floor)) {
-      // Already going this way
+      // Already going to this floor
       return;
     }
-    // Technically the elevator isn't occupied yet, but it might as well be.
-    this.numPassengers++;
     this.destinations.push(floor);
-    if (floor > dest) {
+    if (floor < this.currentFloor) {
       // moving down
       this.destinations.sort((lhs, rhs) => rhs - lhs);
     } else {
       // moving up
       this.destinations.sort((lhs, rhs) => lhs - rhs);
     }
-    this.tripsUntilService--;
   }
 
   /**
@@ -94,27 +104,45 @@ class Elevator {
       this.lingerTime--;
       if (this.lingerTime <= 0) {
         this.doorOpen = false;
-        this.simulator.report(this, `Doors closed on floor ${this.currentFloor}.`);
+        this.simulator.report(this, `Doors closed on floor ${this.currentFloor + 1}.`);
       }
       return;
     }
     if (this.destinations.length) {
+      console.log('moving', this.destinations[0], this.currentFloor, Math.sign(this.destinations[0] - this.currentFloor));
       this.currentFloor += Math.sign(this.destinations[0] - this.currentFloor);
-      this.simulator.report(this, `Moved to floor ${this.currentFloor}`);
+      this.simulator.report(this, `Moved to floor ${this.currentFloor + 1}`);
       if (this.currentFloor === this.destinations[0]) {
         // The elevator has reached its destination
         this.destinations.shift();
-        this.numPassengers--;
         this.lingerTime = ELEVATOR_LINGER_TIME;
         this.doorOpen = true;
-        this.simulator.report(this, `Doors open on floor ${this.currentFloor}.`);
+        this.simulator.report(this, `Doors open on floor ${this.currentFloor + 1}.`);
+
+        // Remove passengers
+        const oldNumPassengers = this.passengers.length;
+        this.passengers = this.passengers.filter(pass => pass.to !== this.currentFloor);
+        this.tripsUntilService -= (this.passengers.length - oldNumPassengers);
+
+        // Add waiting passengers
+        for (let i = this.waitingPassengers.length - 1; i >= 0; --i) {
+          if (this.waitingPassengers[i].from === this.currentFloor) {
+            const passenger = this.waitingPassengers.splice(i, 1)[0];
+            this.passengers.push(passenger);
+            this.addDestination(passenger.to);
+            this.simulator.report(this, `Passenger enters, presses floor ${passenger.to + 1}.`);
+          }
+        }
       }
       this.distanceTraveled++;
     }
     if (!this.running) {
-      this.display.innerHTML = 'Stopped';
+      this.display.innerHTML = '[Out of Service]';
     } else {
-      this.display.innerHTML = `${this.currentFloor + 1} - ${this.doorOpen ? 'Open' : 'Closed'} (${this.numPassengers})`;
+      this.display.innerHTML = (
+        `${this.currentFloor + 1} - ${this.doorOpen ? 'Open' : 'Closed'} ` + 
+        `(${this.passengers.length})`
+      );
     }
   }
 }
