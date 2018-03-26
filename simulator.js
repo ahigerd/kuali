@@ -13,6 +13,7 @@ class Simulator {
    * @param {Number} elevators The number of elevators servicing the building.
    */
   constructor(floors, elevators) {
+    this.stopped = false;
     this.label = 'Simulator';
     this.floors = floors;
     this.timeToRequest = REQUEST_FREQUENCY;
@@ -22,6 +23,7 @@ class Simulator {
     this.elevators = [];
     for (let i = 0; i < elevators; i++) {
       const row = document.createElement('TR');
+      row.className = 'elevatorRow';
       const label = document.createElement('TD');
       const display = document.createElement('TD');
       const elevator = new Elevator(this, i, floors, display);
@@ -66,6 +68,9 @@ class Simulator {
    * idle.
    */
   tick() {
+    if (this.stopped) {
+      return;
+    }
     this.timeToRequest--;
     if (this.timeToRequest < 0) {
       this.timeToRequest = REQUEST_FREQUENCY;
@@ -75,13 +80,14 @@ class Simulator {
         const elevator = this.pickElevator(sourceFloor, destFloor);
         if (elevator) {
           this.report(this, `Pressed ${sourceFloor < destFloor ? 'up' : 'down'} button on floor ${sourceFloor + 1}, ${elevator.label} answering.`);
-          this.report(this, `going to ${destFloor+1}`);
           elevator.summon(sourceFloor, destFloor);
+        } else if (sourceFloor !== destFloor) {
+          this.report(this, `Pressed ${sourceFloor < destFloor ? 'up' : 'down'} button on floor ${sourceFloor + 1}, all elevators out of service.`);
         }
       }
     }
     this.elevators.forEach(elevator => elevator.tick());
-    if (this.elevators.some(elevator => elevator.running)) {
+    if (this.elevators.some(elevator => elevator.running || elevator.passengers.length)) {
       // If any elevators are still running, ask the browser to run the simulation for another tick.
       this.currentTime++;
       window.requestAnimationFrame(this.tick);
@@ -99,20 +105,42 @@ class Simulator {
     this.output.appendChild(div);
   }
 
+  /**
+   * Selects an elevator that can service a request.
+   */
   pickElevator(sourceFloor, destFloor) {
     if (sourceFloor === destFloor) {
       // No elevators need to be summoned if the passenger is already on the right floor.
       return null;
     }
-    const emptyElevators = this.elevators.filter(elevator => !elevator.occupied);
+    const direction = destFloor > sourceFloor;
+
+    const serviceElevators = this.elevators.filter(elevator => elevator.running);
+    if (serviceElevators.length === 0) {
+      // All elevators are out of service. Sorry, passenger.
+      return null;
+    }
+
+    const emptyElevators = serviceElevators.filter(elevator => !elevator.occupied);
 
     const perfectElevator = emptyElevators.find(elevator => elevator.currentFloor === sourceFloor);
     if (perfectElevator) {
-      // If an elevator is already on the source floor, use it.
+      // If an empty elevator is already on the source floor, use it.
       return perfectElevator;
     }
 
-    const enRouteElevators = this.elevators.filter(elevator => elevator.isEnRouteTo(sourceFloor));
+    let enRouteElevators = serviceElevators.filter(elevator => elevator.isEnRouteTo(sourceFloor, direction));
+
+    if (enRouteElevators.length === 0) {
+      // No empty elevators are available.
+      // No en-route elevators are available.
+      // The passenger is just going to have to wait.
+      // TODO: A better implementation would keep track of waiting passengers that haven't yet been assigned to an
+      // elevator and re-evaluate the conditions every tick, so that as soon as an optimum elevator is available, it
+      // will use it. The current implementation forces the passenger to wait on the specific elevator that gets
+      // assigned to it here.
+      enRouteElevators = serviceElevators;
+    }
 
     const availableElevators = enRouteElevators.length > 0 ? enRouteElevators : emptyElevators;
     availableElevators.sort((lhs, rhs) => {
@@ -123,10 +151,15 @@ class Simulator {
       }
       return distance;
     });
-
     return availableElevators[0];
   }
+
+  stop() {
+    this.stopped = true;
+  }
 }
+
+let simulator = null;
 
 // Wait for the document to finish loading, then attach the Simulate button.
 window.addEventListener('load', () => {
@@ -134,8 +167,10 @@ window.addEventListener('load', () => {
     [...document.querySelectorAll('.elevatorRow')].forEach(row => row.remove());
     const floors = parseInt(document.querySelector('#floors').value) || 1;
     const elevators = parseInt(document.querySelector('#elevators').value) || 1;
-    const simulator = new Simulator(floors, elevators);
-    window.sim = simulator;
+    if (simulator) {
+      simulator.stop();
+    }
+    simulator = new Simulator(floors, elevators);
     simulator.run(document.querySelector('#output'));
   });
 });

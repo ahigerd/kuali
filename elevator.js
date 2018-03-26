@@ -24,7 +24,7 @@ class Elevator {
     this.label = 'Elevator ' + (index + 1);
 
     // A possibility to consider is defining a home floor for elevators.
-    this.currentFloor = 1;
+    this.currentFloor = 0;
 
     // A list of floors that the elevator must visit.
     this.destinations = [];
@@ -60,14 +60,14 @@ class Elevator {
    * @param {Number} floor The floor being considered.
    * @returns {Boolean} True if the elevator will pass by the specified floor.
    */
-  isEnRouteTo(floor) {
+  isEnRouteTo(floor, direction) {
     const lastDestination = this.destinations[this.destinations.length - 1];
     if (lastDestination >= this.currentFloor) {
       // moving upward
-      return this.currentFloor <= floor && floor <= lastDestination;
+      return direction && this.currentFloor <= floor && floor <= lastDestination;
     } else {
       // moving downward
-      return this.currentFloor >= floor && floor >= lastDestination;
+      return !direction && this.currentFloor >= floor && floor >= lastDestination;
     }
   }
 
@@ -77,12 +77,12 @@ class Elevator {
    * @param {Number} dest The target floor.
    */ 
   summon(floor, dest) {
-    this.waitingPassengers.push({ from: floor, to: dest });
+    this.waitingPassengers.push({ from: floor, to: dest, direction: dest > floor });
     this.addDestination(floor);
   }
 
   addDestination(floor) {
-    if (this.destinations.includes(floor)) {
+    if (this.destinations.includes(floor) || floor === this.currentFloor) {
       // Already going to this floor
       return;
     }
@@ -109,35 +109,64 @@ class Elevator {
       return;
     }
     if (this.destinations.length) {
-      console.log('moving', this.destinations[0], this.currentFloor, Math.sign(this.destinations[0] - this.currentFloor));
       this.currentFloor += Math.sign(this.destinations[0] - this.currentFloor);
+      this.distanceTraveled++;
       this.simulator.report(this, `Moved to floor ${this.currentFloor + 1}`);
       if (this.currentFloor === this.destinations[0]) {
         // The elevator has reached its destination
         this.destinations.shift();
         this.lingerTime = ELEVATOR_LINGER_TIME;
-        this.doorOpen = true;
-        this.simulator.report(this, `Doors open on floor ${this.currentFloor + 1}.`);
 
-        // Remove passengers
-        const oldNumPassengers = this.passengers.length;
-        this.passengers = this.passengers.filter(pass => pass.to !== this.currentFloor);
-        this.tripsUntilService -= (this.passengers.length - oldNumPassengers);
-
-        // Add waiting passengers
-        for (let i = this.waitingPassengers.length - 1; i >= 0; --i) {
-          if (this.waitingPassengers[i].from === this.currentFloor) {
-            const passenger = this.waitingPassengers.splice(i, 1)[0];
-            this.passengers.push(passenger);
-            this.addDestination(passenger.to);
-            this.simulator.report(this, `Passenger enters, presses floor ${passenger.to + 1}.`);
+        let direction; 
+        if (this.destinations.length > 0) {
+          // If the elevator is already moving in a certain direction, keep going that way
+          if (this.destinations[0] > this.currentFloor) {
+            direction = true;
+          } else {
+            direction = false;
           }
+        } else if (this.waitingPassengers.length > 0) {
+          // Otherwise, the elevator services the person who's been waiting longest
+          direction = this.waitingPassengers[0].direction;
+        } 
+
+        const boardingPassengers = this.waitingPassengers.filter(
+          pass => pass.from === this.currentFloor && pass.direction === direction
+        );
+        const disembarkingPassengers = this.passengers.filter(
+          pass => pass.to === this.currentFloor
+        );
+
+        if (boardingPassengers.length > 0 || disembarkingPassengers.length > 0) {
+          this.doorOpen = true;
+          this.simulator.report(this, `Doors open on floor ${this.currentFloor + 1}.`);
+
+          boardingPassengers.forEach(pass => {
+            this.waitingPassengers.splice(this.waitingPassengers.indexOf(pass), 1);
+            this.passengers.push(pass);
+            this.simulator.report(this, `Passenger enters, presses floor ${pass.to + 1}.`);
+            this.addDestination(pass.to);
+          });
+
+          disembarkingPassengers.forEach(pass => {
+            this.passengers.splice(this.passengers.indexOf(pass), 1);
+          });
+
+          if (disembarkingPassengers.length > 1) {
+            this.simulator.report(this, `${disembarkingPassengers.length} passengers disembarked.`);
+          } else if (disembarkingPassengers.length === 1) {
+            this.simulator.report(this, '1 passenger disembarked.');
+          }
+          this.tripsUntilService -= disembarkingPassengers.length;
         }
       }
-      this.distanceTraveled++;
     }
     if (!this.running) {
-      this.display.innerHTML = '[Out of Service]';
+      if (this.passengers.length > 0) {
+        this.display.innerHTML = `Unloading (${this.passengers.length})`;
+      } else {
+        this.display.innerHTML = '[Out of Service]';
+      }
     } else {
       this.display.innerHTML = (
         `${this.currentFloor + 1} - ${this.doorOpen ? 'Open' : 'Closed'} ` + 
