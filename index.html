@@ -3,14 +3,59 @@
 <head>
   <title>Elevator Simulator</title>
   <script src="elevator.js"></script>
+  <script src="simulator.js"></script>
+  <style>
+    table {
+      display: inline-block;
+      vertical-align: top;
+      margin: 0.5em;
+    }
+    input[type="number"] {
+      width: 3em;
+    }
+    th {
+      border: 1px solid black;
+    }
+    #outputFrame {
+      border: 1px solid black;
+      display: inline-block;
+      width: 30em;
+      vertical-align: top;
+      margin: 0.5em;
+    }
+    h2 {
+      border-bottom: 1px solid black;
+      padding: 0.1em;
+      margin: 0;
+    }
+    #output {
+      padding: 0.5em;
+    }
+  </style>
 </head>
 <body>
   <h1>Elevator Simulator</h1>
-  <table>
-    <tr><th colspan='2'>Configuration</th></tr>
-    <tr><td>Number of floors:</td><td><input id='floors' type='number' value='10' /></td></tr>
-    <tr><td>Number of elevators:</td><td><input id='elevators' type='number' value='2' /></td></tr>
-    <tr><th colspan='2'><button id='simulate'>Simulate</button></th></tr>
+  <table cellspacing='0'>
+    <tr>
+      <th colspan='2'>Configuration</th>
+    </tr>
+    <tr>
+      <td>Number of floors:</td>
+      <td><input id='floors' type='number' value='10' min='1' size='3' /></td>
+    </tr>
+    <tr>
+      <td>Number of elevators:</td>
+      <td><input id='elevators' type='number' value='2' min='1' size='3' maxlength='3' /></td>
+    </tr>
+    <tr>
+      <th colspan='2'><button id='simulate'>Simulate</button></th>
+    </tr>
   </table>
+  <div id='outputFrame'>
+    <h2>Output</h2>
+    <div id='output'>
+      <i>Waiting for simulation...</i>
+    </div>
+  </div>
 </body>
 </html>
